@@ -1,7 +1,5 @@
 namespace FSharp.EdIlyin.Core
 
-open FSharp.EdIlyin.Core.Option
-
 
 module Result =
     let andThen func result =

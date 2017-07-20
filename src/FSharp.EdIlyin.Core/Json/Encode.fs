@@ -4,7 +4,7 @@ open Chiron
 
 
 module Encode =
-    let encode = Chiron.Formatting.Json.format
+    let encode = Json.format
 
 
     let string = function | null -> Null () | s -> String s

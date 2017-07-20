@@ -4,16 +4,16 @@ module FSharp.EdIlyin.Core.Decode
 type Label = string
 
 
-and ErrorMessage = string
+type ErrorMessage = string
 
 
-and DecodeResult<'T,'TUnexpected> =
+type DecodeResult<'T,'TUnexpected> =
     | Decoded of 'T
     | ExpectingButGot of Label * 'TUnexpected
     | Message of ErrorMessage
 
 
-and Decoder<'From,'To> = {
+type Decoder<'From,'To> = {
     decoder: 'From -> DecodeResult<'To, 'From>
     label: Label
 }

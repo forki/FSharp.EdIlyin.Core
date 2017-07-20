@@ -20,3 +20,12 @@ let string =
 
 let value : Decode.Decoder<Json, Json> =
     Decode.primitive "an JSON Value" Decode.Decoded
+
+
+let decodeValue decoder json = Decode.decode decoder json
+
+
+let decodeString decoder json =
+    Json.tryParse json
+        |> Result.fromChoice
+        |> Result.andThen (decodeValue decoder)
