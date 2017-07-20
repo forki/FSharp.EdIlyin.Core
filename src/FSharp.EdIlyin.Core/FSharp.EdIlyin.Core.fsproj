@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net461</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Basics.fs" />
+    <Compile Include="Option.fs" />
+    <Compile Include="Result.fs" />
+    <Compile Include="Decode.fs" />
+    <Compile Include="Debug.fs" />
+    <Compile Include="Json/Encode.fs" />
+    <Compile Include="Json\Decode.fs" />
+    <Content Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Chiron" Version="6.2.1" />
+  </ItemGroup>
+</Project>
