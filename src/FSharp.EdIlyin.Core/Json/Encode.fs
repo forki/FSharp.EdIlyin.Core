@@ -13,6 +13,9 @@ module Encode =
     let int (i: int) = decimal i |> Number
 
 
+    let uint32 (i: uint32) = decimal i |> Number
+
+
     let float (f: float) = decimal f |> Number
 
 

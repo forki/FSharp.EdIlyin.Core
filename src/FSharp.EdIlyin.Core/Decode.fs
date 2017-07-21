@@ -7,24 +7,22 @@ type Label = string
 type ErrorMessage = string
 
 
-type DecodeResult<'T,'TUnexpected> =
+type DecodeResult<'T> =
     | Decoded of 'T
-    | ExpectingButGot of Label * 'TUnexpected
-    | Message of ErrorMessage
+    | ExpectingButGot of Label * string
+    | ErrorMessage of ErrorMessage
 
 
 type Decoder<'From,'To> = {
-    decoder: 'From -> DecodeResult<'To, 'From>
+    decoder: 'From -> DecodeResult<'To>
     label: Label
 }
 
 
-let run decoder value =
-    decoder.decoder value
+let run decoder value = decoder.decoder value
 
 
-let getLabel decoder =
-    decoder.label
+let getLabel decoder = decoder.label
 
 
 let decode decoder source =
@@ -38,19 +36,16 @@ let decode decoder source =
                     got
                     |> Error
 
-            | Message message -> Error message
+            | ErrorMessage message -> Error message
 
 
-let primitive label func =
-    { decoder = func; label = label }
+let inline primitive label func = { decoder = func; label = label }
 
 
-let fail error =
-    primitive "anything" <| fun _ -> Message error
+let fail error = primitive "anything" <| fun _ -> ErrorMessage error
 
 
-let succeed value =
-    primitive "anything" <| fun _ -> Decoded value
+let succeed value = primitive "anything" <| fun _ -> Decoded value
 
 
 let setLabel label decoder = { decoder with label = label }
@@ -70,7 +65,7 @@ let andThen func decoder =
                 | ExpectingButGot (expecting, got) ->
                     expecting => got |> ExpectingButGot
 
-                | Message message -> Message message
+                | ErrorMessage message -> ErrorMessage message
         )
 
 
@@ -218,8 +213,7 @@ let map9 func decoder1 decoder2 decoder3 decoder4 decoder5 decoder6 decoder7 dec
             (getLabel decoder9)
 
 
-let fromResult result =
-    Result.unpack fail succeed result
+let fromResult result = Result.unpack fail succeed result
 
 
 // /// Match an input token if the predicate is satisfied
@@ -230,7 +224,7 @@ let satisfy nextFn predicate label =
         match opt with
             | None ->
                 let err = "No more input"
-                Message err
+                ErrorMessage err
 
             | Some first ->
                 match predicate first with
@@ -268,23 +262,34 @@ let tuple p1 p2 =
 let (.>>.) = tuple
 
 
-let (>>.) p1 p2 =
-    // create a pair
-    p1 .>>. p2
-    // then only keep the second value
-    |> map snd
-
-
-// let value: Decoder<_,_> =
-//     primitive "a Value" Decoded
+let (>>.) p1 p2 = p1 .>>. p2 |> map snd
 
 
 let resultFromResult =
     function
-        | Error x -> Message x
+        | Error x -> ErrorMessage x
         | Ok x -> Decoded x
 
 
 let result decoder =
     let label = getLabel decoder
     decode decoder >> Decoded |> primitive label
+
+
+let inline expectingButGot expecting got =
+    expecting => sprintf "%A" got |> ExpectingButGot
+
+
+let inline errorMessage errorMessage = ErrorMessage errorMessage
+
+
+let inline decoded value = Decoded value
+
+
+let fromDecodeResult label decodeResult =
+    primitive label <| fun _ -> decodeResult
+
+
+let combineList decoderList =
+    succeed List.empty
+        |> List.foldBack (map2 (fun e l -> e::l)) decoderList
