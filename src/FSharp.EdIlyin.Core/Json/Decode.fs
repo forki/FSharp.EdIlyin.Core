@@ -17,16 +17,12 @@ let decodeString decoder json =
         |> Result.andThen (decodeValue decoder)
 
 
-let primitive<'T> label func =
+let primitive label func =
     Decode.primitive label <|
         fun value ->
             try
                 match func value with
-                    | Some (o: obj) ->
-                        match o with
-                            | :? 'T as x -> Decode.decoded x
-                            | _ -> Decode.expectingButGot label value
-
+                    | Some x -> Decode.decoded x
                     | None -> Decode.expectingButGot label value
 
             with | e -> Operators.string e |> Decode.errorMessage
@@ -35,16 +31,17 @@ let primitive<'T> label func =
 
 let uint16 =
     function
-        | Number x -> box x |> Some
+        | Number x -> uint16 x |> Some
         | _ -> None
-        |> primitive<uint16> "an UInt16"
+        |> primitive "an UInt16"
 
 
 let string =
     function
-        | String x -> match x with | null -> None | s -> box s |> Some
+        | String null -> None
+        | String x -> Some x
         | _ -> None
-        |> primitive<string> "a String"
+        |> primitive "a String"
 
 
 let field fieldName decoder =
@@ -85,13 +82,13 @@ let list decoder =
 
 let uint32 =
     function
-        | Number x -> box x |> Some
+        | Number x -> uint32 x |> Some
         | _ -> None
-        |> primitive<uint32> "an UInt32"
+        |> primitive "an UInt32"
 
 
 let int =
     function
-        | Number x -> box x |> Some
+        | Number x -> int x |> Some
         | _ -> None
-        |> primitive<int> "an Int"
+        |> primitive "an Int"

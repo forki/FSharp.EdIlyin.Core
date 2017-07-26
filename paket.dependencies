@@ -1,0 +1,11 @@
+framework: net461
+generate_load_scripts: true
+redirects: on
+source https://nuget.org/api/v2
+
+nuget Chiron
+nuget FAKE
+nuget FSharp.Core
+nuget FSharp.NET.Sdk
+nuget Hopac
+nuget Microsoft.NET.Sdk

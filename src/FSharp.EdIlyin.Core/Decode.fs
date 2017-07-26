@@ -293,3 +293,13 @@ let fromDecodeResult label decodeResult =
 let combineList decoderList =
     succeed List.empty
         |> List.foldBack (map2 (fun e l -> e::l)) decoderList
+
+
+let maybe decoder =
+    decode decoder
+        >> Result.unpack (fun _ -> decoded None) (Some >> decoded)
+        |> primitive ""
+
+
+let withDefault fallback decoder =
+    maybe decoder |> map (Option.withDefault fallback)

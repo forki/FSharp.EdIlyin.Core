@@ -1,7 +1,6 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>1.0.6</Version>
-    <TargetFrameworks>net461;net462</TargetFrameworks>
+    <TargetFramework>net461</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Basics.fs" />
@@ -13,8 +12,5 @@
     <Compile Include="Json/Decode.fs" />
     <Compile Include="Boxcar.fs" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Chiron" Version="6.2.1" />
-    <PackageReference Include="Hopac" Version="0.3.23" />
-  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
