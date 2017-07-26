@@ -1,23 +1,79 @@
-#r "packages/FAKE/tools/FakeLib.dll"
+// --------------------------------------------------------------------------------------
+// FAKE build script
+// --------------------------------------------------------------------------------------
+
+#r "./packages/FAKE/tools/FakeLib.dll"
+
 open Fake
+open System
 
+// --------------------------------------------------------------------------------------
+// Build variables
+// --------------------------------------------------------------------------------------
 
-RestorePackages()
-let solution = "AlsoCloud.Swiftpage"
-let buildDir = sprintf "./src/%s/bin/Release/net461/" solution
-let deployDir = "./deploy/"
-Target "CleanBuild" (fun _ -> CleanDir buildDir)
-Target "Clean" (fun _ -> CleanDir deployDir)
+let buildDir  = "./build/"
+let appReferences = !! "/**/*.fsproj"
+let dotnetcliVersion = "1.0.4"
+let mutable dotnetExePath = "dotnet"
 
-Target "Deploy" (fun _ ->
-    !! (buildDir + "/**/*.*")
-    |> Copy (deployDir + solution)
+// --------------------------------------------------------------------------------------
+// Helpers
+// --------------------------------------------------------------------------------------
+
+let run' timeout cmd args dir =
+    if execProcess (fun info ->
+        info.FileName <- cmd
+        if not (String.IsNullOrWhiteSpace dir) then
+            info.WorkingDirectory <- dir
+        info.Arguments <- args
+    ) timeout |> not then
+        failwithf "Error while running '%s' with args: %s" cmd args
+
+let run = run' System.TimeSpan.MaxValue
+
+let runDotnet workingDir args =
+    let result =
+        ExecProcess (fun info ->
+            info.FileName <- dotnetExePath
+            info.WorkingDirectory <- workingDir
+            info.Arguments <- args) TimeSpan.MaxValue
+    if result <> 0 then failwithf "dotnet %s failed" args
+
+// --------------------------------------------------------------------------------------
+// Targets
+// --------------------------------------------------------------------------------------
+
+Target "Clean" (fun _ ->
+    CleanDirs [buildDir]
 )
 
-Target "Default" ignore
+Target "InstallDotNetCLI" (fun _ ->
+    dotnetExePath <- DotNetCli.InstallDotNetSDK dotnetcliVersion
+)
+
+Target "Restore" (fun _ ->
+    appReferences
+    |> Seq.iter (fun p ->
+        let dir = System.IO.Path.GetDirectoryName p
+        runDotnet dir "restore"
+    )
+)
+
+Target "Build" (fun _ ->
+    appReferences
+    |> Seq.iter (fun p ->
+        let dir = System.IO.Path.GetDirectoryName p
+        runDotnet dir "build"
+    )
+)
+
+// --------------------------------------------------------------------------------------
+// Build order
+// --------------------------------------------------------------------------------------
 
 "Clean"
-    ==> "Deploy"
-    ==> "Default"
+  ==> "InstallDotNetCLI"
+  ==> "Restore"
+  ==> "Build"
 
-RunTargetOrDefault "Default"
+RunTargetOrDefault "Build"

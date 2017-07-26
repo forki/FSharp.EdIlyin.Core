@@ -1,6 +1,8 @@
 <Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
   <PropertyGroup>
+    <OutputType>Library</OutputType>
     <TargetFramework>net461</TargetFramework>
+    <DebugType>portable</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Basics.fs" />
@@ -8,8 +10,8 @@
     <Compile Include="Result.fs" />
     <Compile Include="Decode.fs" />
     <Compile Include="Debug.fs" />
-    <Compile Include="Json/Encode.fs" />
-    <Compile Include="Json/Decode.fs" />
+    <Compile Include="Json\Encode.fs" />
+    <Compile Include="Json\Decode.fs" />
     <Compile Include="Boxcar.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

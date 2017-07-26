@@ -1,5 +1,4 @@
+FSharp.Core
+FSharp.NET.Sdk
 Chiron
 Hopac
-FSharp.NET.Sdk
-Microsoft.NET.Sdk
-FSharp.Core
