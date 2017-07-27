@@ -11,7 +11,8 @@ open System
 // Build variables
 // --------------------------------------------------------------------------------------
 
-let buildDir  = "./build/"
+let objDir  = "./src/FSharp.EdIlyin.Core/obj/"
+let binDir  = "./src/FSharp.EdIlyin.Core/bin/"
 let appReferences = !! "/**/*.fsproj"
 let dotnetcliVersion = "2.0.0-preview2-006497"
 let mutable dotnetExePath = "dotnet"
@@ -44,7 +45,7 @@ let runDotnet workingDir args =
 // --------------------------------------------------------------------------------------
 
 Target "Clean" (fun _ ->
-    CleanDirs [buildDir]
+    CleanDirs [objDir; binDir]
 )
 
 Target "InstallDotNetCLI" (fun _ ->
@@ -67,6 +68,14 @@ Target "Build" (fun _ ->
     )
 )
 
+Target "Release" (fun _ ->
+    appReferences
+    |> Seq.iter (fun p ->
+        let dir = System.IO.Path.GetDirectoryName p
+        runDotnet dir "pack -c Release /p:PackageVersion=0.0.3"
+    )
+)
+
 // --------------------------------------------------------------------------------------
 // Build order
 // --------------------------------------------------------------------------------------
@@ -75,5 +84,8 @@ Target "Build" (fun _ ->
   ==> "InstallDotNetCLI"
   ==> "Restore"
   ==> "Build"
+
+"Clean"
+  ==> "Release"
 
 RunTargetOrDefault "Build"
