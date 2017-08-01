@@ -1,7 +1,0 @@
-#r "../../packages/Hopac/lib/net45/Hopac.Core.dll" 
-#r "../../packages/FParsec/lib/net40-client/FParsecCS.dll" 
-#r "../../packages/Aether/lib/net45/Aether.dll" 
-#r "../../packages/Hopac/lib/net45/Hopac.Platform.dll" 
-#r "../../packages/Hopac/lib/net45/Hopac.dll" 
-#r "../../packages/FParsec/lib/net40-client/FParsec.dll" 
-#r "../../packages/Chiron/lib/net40/Chiron.dll" 

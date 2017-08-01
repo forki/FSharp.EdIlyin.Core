@@ -1,8 +1,10 @@
 <Project Sdk="FSharp.NET.Sdk;Microsoft.NET.Sdk">
   <PropertyGroup>
+    <Author>Ed Ilyin</Author>
+    <DebugType>portable</DebugType>
     <OutputType>Library</OutputType>
     <TargetFramework>net461</TargetFramework>
-    <DebugType>portable</DebugType>
+    <Version>1.0.8</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Basics.fs" />
@@ -14,25 +16,5 @@
     <Compile Include="Json\Decode.fs" />
     <Compile Include="Boxcar.fs" />
   </ItemGroup>
-  <ProjectExtensions>
-    <MonoDevelop>
-      <Properties>
-        <Policies>
-          <DotNetNamingPolicy ResourceNamePolicy="FileFormatDefault" DirectoryNamespaceAssociation="PrefixedFlat">
-            <inheritsSet />
-            <inheritsScope />
-          </DotNetNamingPolicy>
-          <TextStylePolicy inheritsSet="null" scope="application/config+xml" />
-          <XmlFormattingPolicy inheritsSet="null" scope="application/config+xml" />
-          <TextStylePolicy inheritsSet="null" scope="text/x-fsharp" />
-          <FSharpFormattingPolicy scope="text/x-fsharp">
-            <DefaultFormat IndentOnTryWith="False" ReorderOpenDeclaration="False" SpaceAfterComma="True" SpaceAfterSemicolon="True" SpaceAroundDelimiter="True" SpaceBeforeArgument="True" SpaceBeforeColon="True" __added="0" />
-            <inheritsSet />
-            <inheritsScope />
-          </FSharpFormattingPolicy>
-        </Policies>
-      </Properties>
-    </MonoDevelop>
-  </ProjectExtensions>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -1,5 +1,4 @@
-framework: net461
-generate_load_scripts: true
+framework: >= net461
 redirects: on
 source https://nuget.org/api/v2
 
