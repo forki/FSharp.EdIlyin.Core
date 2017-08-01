@@ -3,6 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{664B42ED-9637-49FA-9AAD-37862B5FA5FE}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+	EndProjectSection
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{28F6DAF5-9EBE-49BE-B284-76DC2DA0B5AD}"
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharp.EdIlyin.Core", "src\FSharp.EdIlyin.Core\FSharp.EdIlyin.Core.fsproj", "{D826ADAB-DF07-4C5D-9507-F343279CA0AC}"

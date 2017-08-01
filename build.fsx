@@ -11,9 +11,9 @@ open System
 // Build variables
 // --------------------------------------------------------------------------------------
 
-let objDir  = "./src/FSharp.EdIlyin.Core/obj/"
-let binDir  = "./src/FSharp.EdIlyin.Core/bin/"
-let appReferences = !! "/**/*.fsproj"
+let buildDir  = "./build/"
+let deployDir  = "./deploy/"
+let solution = "FSharp.EdIlyin.Core.sln"
 let dotnetcliVersion = "2.0.0-preview2-006497"
 let mutable dotnetExePath = "dotnet"
 
@@ -45,7 +45,8 @@ let runDotnet workingDir args =
 // --------------------------------------------------------------------------------------
 
 Target "Clean" (fun _ ->
-    CleanDirs [objDir; binDir]
+    !! "src/**/bin" ++ "src/**/obj" |> CleanDirs
+    CleanDirs [buildDir; deployDir]
 )
 
 Target "InstallDotNetCLI" (fun _ ->
@@ -53,27 +54,20 @@ Target "InstallDotNetCLI" (fun _ ->
 )
 
 Target "Restore" (fun _ ->
-    appReferences
-    |> Seq.iter (fun p ->
-        let dir = System.IO.Path.GetDirectoryName p
-        runDotnet dir "restore"
-    )
+    runDotnet null "restore"
 )
 
 Target "Build" (fun _ ->
-    appReferences
-    |> Seq.iter (fun p ->
-        let dir = System.IO.Path.GetDirectoryName p
-        runDotnet dir "build"
-    )
+    MSBuildDebug buildDir "" [solution] |> ignore
+)
+
+Target "BuildRelease" (fun _ ->
+    MSBuildDebug deployDir "" [solution] |> ignore
+    run msBuildExe "/Target=" null
 )
 
 Target "Release" (fun _ ->
-    appReferences
-    |> Seq.iter (fun p ->
-        let dir = System.IO.Path.GetDirectoryName p
-        runDotnet dir "pack -c Release /p:PackageVersion=0.0.3"
-    )
+    runDotnet null "pack -c Release /p:PackageVersion=0.0.3 -o deployn"
 )
 
 // --------------------------------------------------------------------------------------
@@ -86,6 +80,7 @@ Target "Release" (fun _ ->
   ==> "Build"
 
 "Clean"
-  ==> "Release"
+    ==> "BuildRelease"
+    ==> "Release"
 
 RunTargetOrDefault "Build"
