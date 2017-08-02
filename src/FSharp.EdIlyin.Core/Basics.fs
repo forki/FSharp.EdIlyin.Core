@@ -16,6 +16,9 @@ module Basics =
     let (=>) x y = x, y
 
 
+    let tuple x y = x, y
+
+
     let curry f x y = f (x, y)
 
 

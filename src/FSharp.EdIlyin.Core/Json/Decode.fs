@@ -44,6 +44,27 @@ let string =
         |> primitive "a String"
 
 
+let dict decoder =
+    let label =
+        Decode.getLabel decoder |> sprintf "maping of string to %s"
+
+    function
+        | Object o ->
+            o
+                |> Map.toList
+                |> List.map
+                    (fun (name, json) ->
+                        decodeValue decoder json
+                            |> Result.map (tuple name)
+                    )
+                |> Result.combineList
+                |> Result.map Map.ofList
+                |> Decode.resultFromResult
+
+        | other -> Decode.expectingButGot label other
+        |> Decode.primitive label
+
+
 let field fieldName decoder =
     let label =
         sprintf "%s field '%s'" (Decode.getLabel decoder) fieldName
@@ -92,3 +113,15 @@ let int =
         | Number x -> int x |> Some
         | _ -> None
         |> primitive "an Int"
+
+
+let at path decoder = List.foldBack field path decoder
+
+
+let optionalField fieldName decoder =
+    let finishDecoding json =
+        match decodeValue (field fieldName value) json with
+            | Ok _ -> field fieldName decoder |> Decode.map Some
+            | Result.Error _ -> Decode.succeed None
+
+    in value |> Decode.andThen finishDecoding

@@ -22,10 +22,10 @@ module Encode =
     let bool b = Bool b
 
 
-    let null' = Null ()
+    let ``null`` = Null ()
 
 
     let list l = Array l
 
 
-    let object' kvl = Map.ofList kvl |> Object
+    let object kvl = Map.ofList kvl |> Object
