@@ -19,13 +19,10 @@ module Basics =
     let curry f x y = f (x, y)
 
 
-    let uncurry f (x, y) = f x y
+    let first x _ = x
 
 
-    let first func x _ = func x
-
-
-    let second func _ y = func y
+    let second _ x = x
 
 
     let flip func x y = func y x
