@@ -4,7 +4,7 @@
     <DebugType>portable</DebugType>
     <OutputType>Library</OutputType>
     <TargetFramework>net461</TargetFramework>
-    <Version>1.0.12</Version>
+    <Version>1.0.14</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Basics.fs" />
@@ -15,6 +15,9 @@
     <Compile Include="Json\Encode.fs" />
     <Compile Include="Json\Decode.fs" />
     <Compile Include="Boxcar.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FSharp.NET.Sdk" Version="1.0.*" PrivateAssets="All" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

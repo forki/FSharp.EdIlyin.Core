@@ -1,31 +1,30 @@
-namespace FSharp.EdIlyin.Core.Json
+module FSharp.EdIlyin.Core.Json.Encode
 
 open Chiron
 
 
-module Encode =
-    let encode = Json.format
+let encode = Json.format
 
 
-    let string = function | null -> Null () | s -> String s
+let string = Json.String
 
 
-    let int (i: int) = decimal i |> Number
+let int = decimal >> Json.Number
 
 
-    let uint32 (i: uint32) = decimal i |> Number
+let uint32 (x: uint32) = decimal x |> Json.Number
 
 
-    let float (f: float) = decimal f |> Number
+let float (x: float) = decimal x |> Json.Number
 
 
-    let bool b = Bool b
+let bool = Json.Bool
 
 
-    let ``null`` = Null ()
+let Null = Json.Null
 
 
-    let list l = Array l
+let list = Json.Array
 
 
-    let object kvl = Map.ofList kvl |> Object
+let object = Map.ofList >> Json.Object

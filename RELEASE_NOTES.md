@@ -1,4 +1,10 @@
-### 1.0.12 - 2 August 2017
+### 1.0.14 - 4 August 2017
+* back to FSharp.Core 4.0.0.1
+
+#### 1.0.13 - 3 August 2017
+* trying Chiron 7 alpha
+
+#### 1.0.12 - 2 August 2017
 * add Json.Decode.optionalField
 
 #### 1.0.11 - 2 August 2017

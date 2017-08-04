@@ -384,10 +384,19 @@ let pushNuget (releaseNotes: ReleaseNotes) (projFiles: string list) =
 
 Target "Clean" clean
 
+let restore _ = Util.run null dotnetExePath "restore"
+
+Target "Update" (fun _ ->
+    Util.run "" ".paket/paket.exe" "update"
+    restore ()
+)
+
+Target "Restore" restore
+
 Target "Build" (fun () ->
     installDotnetSdk ()
     clean ()
-    Util.run null dotnetExePath "restore"
+    restore ()
     for pkg in packages do
         let projFile = __SOURCE_DIRECTORY__ </> (pkg + ".fsproj")
         let projDir = Path.GetDirectoryName(projFile)
@@ -407,6 +416,9 @@ let publishPackages () =
 
 Target "PublishPackages" publishPackages
 Target "PublishPackage" publishPackages
+Target "Release" DoNothing
+
+"PublishPackage" ==> "Release"
 
 // Start build
 RunTargetOrDefault "Build"

@@ -12,8 +12,9 @@ let decodeValue decoder json = Decode.decode decoder json
 
 
 let decodeString decoder json =
-    Json.tryParse json
-        |> Result.fromChoice
+    match Json.tryParse json with
+        | Choice1Of2 x -> Ok x
+        | Choice2Of2 e -> Error e
         |> Result.andThen (decodeValue decoder)
 
 
@@ -50,8 +51,7 @@ let dict decoder =
 
     function
         | Object o ->
-            o
-                |> Map.toList
+            Map.toList o
                 |> List.map
                     (fun (name, json) ->
                         decodeValue decoder json
@@ -72,9 +72,9 @@ let field fieldName decoder =
     let got unexpected = Decode.expectingButGot label unexpected
 
     function
-        | Object map ->
-            match Map.tryFind fieldName map with
-                | None -> got map
+        | Object o ->
+            match Map.tryFind fieldName o with
+                | None -> got o
                 | Some x -> Decode.run decoder x
 
         | other -> got other

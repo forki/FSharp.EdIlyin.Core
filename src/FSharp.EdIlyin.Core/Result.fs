@@ -1,6 +1,17 @@
 namespace FSharp.EdIlyin.Core
 
 
+/// <summary>Helper type for error handling without exceptions.</summary>
+[<StructuralEquality; StructuralComparison>]
+[<CompiledName("FSharpResult`2")>]
+[<Struct>]
+type Result<'T,'TError> =
+  /// Represents an OK or a Successful result. The code succeeded with a value of 'T.
+  | Ok of ResultValue:'T
+  /// Represents an Error or a Failure. The code failed with a value of 'TError representing what went wrong.
+  | Error of ErrorValue:'TError
+
+
 module Result =
     let andThen func result =
         match result with
