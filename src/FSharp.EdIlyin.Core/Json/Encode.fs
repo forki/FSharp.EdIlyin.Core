@@ -21,7 +21,7 @@ let float (x: float) = decimal x |> Json.Number
 let bool = Json.Bool
 
 
-let Null = Json.Null
+let Null = Json.Null ()
 
 
 let list = Json.Array

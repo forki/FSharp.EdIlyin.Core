@@ -4,7 +4,7 @@
     <DebugType>portable</DebugType>
     <OutputType>Library</OutputType>
     <TargetFramework>net461</TargetFramework>
-    <Version>1.0.14</Version>
+    <Version>1.0.15</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Basics.fs" />
