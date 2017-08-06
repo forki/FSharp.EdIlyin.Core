@@ -1,4 +1,7 @@
-### 1.0.15 - 4 August 2017
+### 1.0.16 - 6 August 2017
+* FSharp.Core ~> 4.0.1.7-alpha
+
+#### 1.0.15 - 4 August 2017
 * fixes Null
 
 #### 1.0.14 - 4 August 2017

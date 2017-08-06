@@ -8,6 +8,6 @@ NUGET
       FParsec (>= 1.0 < 2.0)
     FAKE (4.63)
     FParsec (1.0.2)
-    FSharp.Core (4.0.0.1)
+    FSharp.Core (4.0.1.7-alpha)
     Hopac (0.3.23)
       FSharp.Core (>= 3.1.2.5)

@@ -5,4 +5,4 @@ source https://nuget.org/api/v2
 nuget Chiron
 nuget FAKE
 nuget Hopac
-nuget FSharp.Core ~> 4.0.0
+nuget FSharp.Core ~> 4.0.1.7-alpha
