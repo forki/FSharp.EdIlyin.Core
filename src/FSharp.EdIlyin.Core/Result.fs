@@ -4,7 +4,6 @@ namespace FSharp.EdIlyin.Core
 /// <summary>Helper type for error handling without exceptions.</summary>
 [<StructuralEquality; StructuralComparison>]
 [<CompiledName("FSharpResult`2")>]
-[<Struct>]
 type Result<'T,'TError> =
   /// Represents an OK or a Successful result. The code succeeded with a value of 'T.
   | Ok of ResultValue:'T
