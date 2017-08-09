@@ -1,3 +1,6 @@
+### 1.0.17
+* ProjectScaffold
+
 ### 1.0.16 - 6 August 2017
 * FSharp.Core ~> 4.0.1.7-alpha
 
