@@ -1,4 +1,7 @@
-### 1.0.17
+### 1.1.0
+* fixes version
+
+#### 1.0.17
 * ProjectScaffold
 
 ### 1.0.16 - 6 August 2017
