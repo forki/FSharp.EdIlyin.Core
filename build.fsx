@@ -1,424 +1,373 @@
-#r "packages/FAKE/tools/FakeLib.dll"
-#r "System.IO.Compression.FileSystem"
+// --------------------------------------------------------------------------------------
+// FAKE build script
+// --------------------------------------------------------------------------------------
+
+#r @"packages/build/FAKE/tools/FakeLib.dll"
+open Fake
+open Fake.Git
+open Fake.AssemblyInfoFile
+open Fake.ReleaseNotesHelper
+open Fake.UserInputHelper
 
 open System
 open System.IO
-open System.Text.RegularExpressions
-open System.Collections.Generic
-open Fake
-open Fake.AssemblyInfoFile
-open Fake.Git
-open Fake.ReleaseNotesHelper
+open System.Diagnostics
 
-let packages = [ "src/FSharp.EdIlyin.Core/FSharp.EdIlyin.Core" ]
+// --------------------------------------------------------------------------------------
+// START TODO: Provide project-specific details below
+// --------------------------------------------------------------------------------------
 
+// Information about the project are used
+//  - for version and project name in generated AssemblyInfo file
+//  - by the generated NuGet package
+//  - to run tests and to publish documentation on GitHub gh-pages
+//  - for documentation, you also need to edit info in "docsrc/tools/generate.fsx"
+
+// The name of the project
+// (used by attributes in AssemblyInfo, name of a NuGet package and directory in 'src')
+let project = "FSharp.EdIlyin.Core"
+
+// Short summary of the project
+// (used as description in AssemblyInfo and as a short summary for NuGet package)
+let summary = "Project has no summmary; update build.fsx"
+
+// Longer description of the project
+// (used as a description for NuGet package; line breaks are automatically cleaned up)
+let description = "Project has no description; update build.fsx"
+
+// List of author names (for NuGet package)
+let authors = [ "Ed Ilyin" ]
+
+// Tags for your project (for NuGet package)
+let tags = ""
+
+// File system information
+let solutionFile  = "FSharp.EdIlyin.Core.sln"
+
+// Default target configuration
+let configuration = "Release"
+
+// Pattern specifying assemblies to be tested using NUnit
+let testAssemblies = "tests/**/bin" </> configuration </> "*Tests*.dll"
+
+// Git configuration (used for publishing documentation in gh-pages branch)
+// The profile where the project is posted
+let gitOwner = "ed-ilyin"
+let gitHome = sprintf "%s/%s" "https://github.com" gitOwner
+
+// The name of the project on GitHub
+let gitName = "FSharp.EdIlyin.Core"
+
+// The url for the raw files hosted
+let gitRaw = environVarOrDefault "gitRaw" "https://raw.githubusercontent.com/ed-ilyin"
+
+// --------------------------------------------------------------------------------------
+// END TODO: The rest of the file includes standard build steps
+// --------------------------------------------------------------------------------------
+
+// Read additional information from the release notes document
+let release = LoadReleaseNotes "RELEASE_NOTES.md"
+
+// Helper active pattern for project types
+let (|Fsproj|Csproj|Vbproj|Shproj|) (projFileName:string) =
+    match projFileName with
+    | f when f.EndsWith("fsproj") -> Fsproj
+    | f when f.EndsWith("csproj") -> Csproj
+    | f when f.EndsWith("vbproj") -> Vbproj
+    | f when f.EndsWith("shproj") -> Shproj
+    | _                           -> failwith (sprintf "Project file %s not supported. Unknown project type." projFileName)
+
+// Generate assembly info files with the right version & up-to-date information
+Target "AssemblyInfo" (fun _ ->
+    let getAssemblyInfoAttributes projectName =
+        [ Attribute.Title (projectName)
+          Attribute.Product project
+          Attribute.Description summary
+          Attribute.Version release.AssemblyVersion
+          Attribute.FileVersion release.AssemblyVersion
+          Attribute.Configuration configuration ]
+
+    let getProjectDetails projectPath =
+        let projectName = System.IO.Path.GetFileNameWithoutExtension(projectPath)
+        ( projectPath,
+          projectName,
+          System.IO.Path.GetDirectoryName(projectPath),
+          (getAssemblyInfoAttributes projectName)
+        )
+
+    !! "src/**/*.??proj"
+    |> Seq.map getProjectDetails
+    |> Seq.iter (fun (projFileName, projectName, folderName, attributes) ->
+        match projFileName with
+        | Fsproj -> CreateFSharpAssemblyInfo (folderName </> "AssemblyInfo.fs") attributes
+        | Csproj -> CreateCSharpAssemblyInfo ((folderName </> "Properties") </> "AssemblyInfo.cs") attributes
+        | Vbproj -> CreateVisualBasicAssemblyInfo ((folderName </> "My Project") </> "AssemblyInfo.vb") attributes
+        | Shproj -> ()
+        )
+)
+
+// Copies binaries from default VS location to expected bin folder
+// But keeps a subdirectory structure for each project in the
+// src folder to support multiple project outputs
+Target "CopyBinaries" (fun _ ->
+    !! "src/**/*.??proj"
+    -- "src/**/*.shproj"
+    |>  Seq.map (fun f -> ((System.IO.Path.GetDirectoryName f) </> "bin" </> configuration, "bin" </> (System.IO.Path.GetFileNameWithoutExtension f)))
+    |>  Seq.iter (fun (fromDir, toDir) -> CopyDir toDir fromDir (fun _ -> true))
+)
+
+// --------------------------------------------------------------------------------------
+// Clean build results
+
+let vsProjProps = 
 #if MONO
-// prevent incorrect output encoding (e.g. https://github.com/fsharp/FAKE/issues/1196)
-System.Console.OutputEncoding <- System.Text.Encoding.UTF8
+    [ ("DefineConstants","MONO"); ("Configuration", configuration) ]
+#else
+    [ ("Configuration", configuration); ("Platform", "Any CPU") ]
 #endif
 
-module Util =
-    open System.Net
+Target "Clean" (fun _ ->
+    !! solutionFile |> MSBuildReleaseExt "" vsProjProps "Clean" |> ignore
+    CleanDirs ["bin"; "temp"; "docs"]
+)
 
-    let retryIfFails maxRetries f =
-        let rec loop retriesRemaining =
-            try
-                f ()
-            with _ when retriesRemaining > 0 ->
-                loop (retriesRemaining - 1)
-        loop maxRetries
+// --------------------------------------------------------------------------------------
+// Build library & test project
 
-    let (|RegexReplace|_|) =
-        let cache = new Dictionary<string, Regex>()
-        fun pattern (replacement: string) input ->
-            let regex =
-                match cache.TryGetValue(pattern) with
-                | true, regex -> regex
-                | false, _ ->
-                    let regex = Regex pattern
-                    cache.Add(pattern, regex)
-                    regex
-            let m = regex.Match(input)
-            if m.Success
-            then regex.Replace(input, replacement) |> Some
-            else None
+Target "Build" (fun _ ->
+    !! solutionFile
+    |> MSBuildReleaseExt "" vsProjProps "Rebuild"
+    |> ignore
+)
 
-    let join pathParts =
-        Path.Combine(Array.ofSeq pathParts)
+// --------------------------------------------------------------------------------------
+// Run the unit tests using test runner
 
-    let run workingDir fileName args =
-        printfn "CWD: %s" workingDir
-        let fileName, args =
-            if EnvironmentHelper.isUnix
-            then fileName, args else "cmd", ("/C " + fileName + " " + args)
-        let ok =
-            execProcess (fun info ->
-                info.FileName <- fileName
-                info.WorkingDirectory <- workingDir
-                info.Arguments <- args) TimeSpan.MaxValue
-        if not ok then failwith (sprintf "'%s> %s %s' task failed" workingDir fileName args)
-
-    let start workingDir fileName args =
-        let p = new System.Diagnostics.Process()
-        p.StartInfo.FileName <- fileName
-        p.StartInfo.WorkingDirectory <- workingDir
-        p.StartInfo.Arguments <- args
-        p.Start() |> ignore
-        p
-
-    let runAndReturn workingDir fileName args =
-        printfn "CWD: %s" workingDir
-        let fileName, args =
-            if EnvironmentHelper.isUnix
-            then fileName, args else "cmd", ("/C " + args)
-        ExecProcessAndReturnMessages (fun info ->
-            info.FileName <- fileName
-            info.WorkingDirectory <- workingDir
-            info.Arguments <- args) TimeSpan.MaxValue
-        |> fun p -> p.Messages |> String.concat "\n"
-
-    let downloadArtifact path (url: string) =
-        async {
-            let tempFile = Path.ChangeExtension(Path.GetTempFileName(), ".zip")
-            use client = new WebClient()
-            do! client.AsyncDownloadFile(Uri url, tempFile)
-            FileUtils.mkdir path
-            CleanDir path
-            run path "unzip" (sprintf "-q %s" tempFile)
-            File.Delete tempFile
-        } |> Async.RunSynchronously
-
-    let rmdir dir =
-        if EnvironmentHelper.isUnix
-        then FileUtils.rm_rf dir
-        // Use this in Windows to prevent conflicts with paths too long
-        else run "." "cmd" ("/C rmdir /s /q " + Path.GetFullPath dir)
-
-    let visitFile (visitor: string->string) (fileName : string) =
-        File.ReadAllLines(fileName)
-        |> Array.map (visitor)
-        |> fun lines -> File.WriteAllLines(fileName, lines)
-
-        // This code is supposed to prevent OutOfMemory exceptions but it outputs wrong BOM
-        // use reader = new StreamReader(fileName, encoding)
-        // let tempFileName = Path.GetTempFileName()
-        // use writer = new StreamWriter(tempFileName, false, encoding)
-        // while not reader.EndOfStream do
-        //     reader.ReadLine() |> visitor |> writer.WriteLine
-        // reader.Close()
-        // writer.Close()
-        // File.Delete(fileName)
-        // File.Move(tempFileName, fileName)
-
-    let replaceLines (replacer: string->Match->string option) (reg: Regex) (fileName: string) =
-        fileName |> visitFile (fun line ->
-            let m = reg.Match(line)
-            if not m.Success
-            then line
-            else
-                match replacer line m with
-                | None -> line
-                | Some newLine -> newLine)
-
-    let compileScript symbols outDir fsxPath =
-        let dllFile = Path.ChangeExtension(Path.GetFileName fsxPath, ".dll")
-        let opts = [
-            yield FscHelper.Out (Path.Combine(outDir, dllFile))
-            yield FscHelper.Target FscHelper.TargetType.Library
-            yield! symbols |> List.map FscHelper.Define
-        ]
-        FscHelper.compile opts [fsxPath]
-        |> function 0 -> () | _ -> failwithf "Cannot compile %s" fsxPath
-
-    let normalizeVersion (version: string) =
-        let i = version.IndexOf("-")
-        if i > 0 then version.Substring(0, i) else version
-
-    let assemblyInfo projectDir version extra =
-        let version = normalizeVersion version
-        let asmInfoPath = projectDir </> "AssemblyInfo.fs"
-        (Attribute.Version version)::extra
-        |> CreateFSharpAssemblyInfo asmInfoPath
-
-    type ComparisonResult = Smaller | Same | Bigger
-
-    let foldi f init (xs: 'T seq) =
-        let mutable i = -1
-        (init, xs) ||> Seq.fold (fun state x ->
-            i <- i + 1
-            f i state x)
-
-    let compareVersions (expected: string) (actual: string) =
-        if actual = "*" // Wildcard for custom fable-core builds
-        then Same
-        else
-            let expected = expected.Split('.', '-')
-            let actual = actual.Split('.', '-')
-            (Same, expected) ||> foldi (fun i comp expectedPart ->
-                match comp with
-                | Bigger -> Bigger
-                | Same when actual.Length <= i -> Smaller
-                | Same ->
-                    let actualPart = actual.[i]
-                    match Int32.TryParse(expectedPart), Int32.TryParse(actualPart) with
-                    // TODO: Don't allow bigger for major version?
-                    | (true, expectedPart), (true, actualPart) ->
-                        if actualPart > expectedPart
-                        then Bigger
-                        elif actualPart = expectedPart
-                        then Same
-                        else Smaller
-                    | _ ->
-                        if actualPart = expectedPart
-                        then Same
-                        else Smaller
-                | Smaller -> Smaller)
-
-    let rec findFileUpwards fileName dir =
-        let fullPath = dir </> fileName
-        if File.Exists(fullPath)
-        then fullPath
-        else
-            let parent = Directory.GetParent(dir)
-            if isNull parent then
-                failwithf "Couldn't find %s directory" fileName
-            findFileUpwards fileName parent.FullName
-
-module Npm =
-    let script workingDir script args =
-        sprintf "run %s -- %s" script (String.concat " " args)
-        |> Util.run workingDir "npm"
-
-    let install workingDir modules =
-        let npmInstall () =
-            sprintf "install %s" (String.concat " " modules)
-            |> Util.run workingDir "npm"
-
-        // On windows, retry npm install to avoid bug related to https://github.com/npm/npm/issues/9696
-        Util.retryIfFails (if isWindows then 3 else 0) npmInstall
-
-    let command workingDir command args =
-        sprintf "%s %s" command (String.concat " " args)
-        |> Util.run workingDir "npm"
-
-    let commandAndReturn workingDir command args =
-        sprintf "%s %s" command (String.concat " " args)
-        |> Util.runAndReturn workingDir "npm"
-
-    let getLatestVersion package tag =
-        let package =
-            match tag with
-            | Some tag -> package + "@" + tag
-            | None -> package
-        commandAndReturn "." "show" [package; "version"]
-
-    let updatePackageKeyValue f pkgDir keys =
-        let pkgJson = Path.Combine(pkgDir, "package.json")
-        let reg =
-            String.concat "|" keys
-            |> sprintf "\"(%s)\"\\s*:\\s*\"(.*?)\""
-            |> Regex
-        let lines =
-            File.ReadAllLines pkgJson
-            |> Array.map (fun line ->
-                let m = reg.Match(line)
-                if m.Success then
-                    match f(m.Groups.[1].Value, m.Groups.[2].Value) with
-                    | Some(k,v) -> reg.Replace(line, sprintf "\"%s\": \"%s\"" k v)
-                    | None -> line
-                else line)
-        File.WriteAllLines(pkgJson, lines)
-
-module Node =
-    let run workingDir script args =
-        let args = sprintf "%s %s" script (String.concat " " args)
-        Util.run workingDir "node" args
-
-module Fake =
-    let fakePath = "packages" </> "docs" </> "FAKE" </> "tools" </> "FAKE.exe"
-    let fakeStartInfo script workingDirectory args fsiargs environmentVars =
-        (fun (info: System.Diagnostics.ProcessStartInfo) ->
-            info.FileName <- System.IO.Path.GetFullPath fakePath
-            info.Arguments <- sprintf "%s --fsiargs -d:FAKE %s \"%s\"" args fsiargs script
-            info.WorkingDirectory <- workingDirectory
-            let setVar k v = info.EnvironmentVariables.[k] <- v
-            for (k, v) in environmentVars do setVar k v
-            setVar "MSBuild" msBuildExe
-            setVar "GIT" Git.CommandHelper.gitPath
-            setVar "FSI" fsiPath)
-
-    /// Run the given buildscript with FAKE.exe
-    let executeFAKEWithOutput workingDirectory script fsiargs envArgs =
-        let exitCode =
-            ExecProcessWithLambdas
-                (fakeStartInfo script workingDirectory "" fsiargs envArgs)
-                TimeSpan.MaxValue false ignore ignore
-        System.Threading.Thread.Sleep 1000
-        exitCode
+Target "RunTests" (fun _ ->
+    !! testAssemblies
+    |> NUnit (fun p ->
+        { p with
+            DisableShadowCopy = true
+            TimeOut = TimeSpan.FromMinutes 20.
+            OutputFile = "TestResults.xml" })
+)
 
 
-let gitOwner = "fable-compiler"
-let gitHome = "https://github.com/" + gitOwner
+// --------------------------------------------------------------------------------------
+// Build a NuGet package
 
-let dotnetcliVersion = "2.0.0-preview2-006497"
-let mutable dotnetExePath = environVarOrDefault "DOTNET" "dotnet"
-let dotnetSDKPath = FullName "./dotnetsdk"
-let localDotnetExePath = dotnetSDKPath </> (if isWindows then "dotnet.exe" else "dotnet")
+Target "NuGet" (fun _ ->
+    Paket.Pack(fun p ->
+        { p with
+            OutputPath = "bin"
+            Version = release.NugetVersion
+            ReleaseNotes = toLines release.Notes})
+)
 
-// Targets
-let installDotnetSdk () =
-    let correctVersionInstalled dotnetExePath =
-        try
-            let processResult =
-                ExecProcessAndReturnMessages (fun info ->
-                info.FileName <- dotnetExePath
-                info.WorkingDirectory <- Environment.CurrentDirectory
-                info.Arguments <- "--version") (TimeSpan.FromMinutes 30.)
+Target "PublishNuget" (fun _ ->
+    Paket.Push(fun p ->
+        { p with
+            PublishUrl = "https://www.nuget.org"
+            WorkingDir = "bin" })
+)
 
-            let installedVersion = processResult.Messages |> separated ""
-            match Util.compareVersions dotnetcliVersion installedVersion with
-            | Util.Same | Util.Bigger -> true
-            | Util.Smaller -> false
-        with
-        | _ -> false
 
-    let correctVersionInstalled =
-        if correctVersionInstalled dotnetExePath
-        then true
-        elif correctVersionInstalled localDotnetExePath
-        then
-            dotnetExePath <- localDotnetExePath
-            true
-        else false
+// --------------------------------------------------------------------------------------
+// Generate the documentation
 
-    if correctVersionInstalled then
-        tracefn "dotnetcli %s already installed" dotnetcliVersion
-    else
-        CleanDir dotnetSDKPath
-        let archiveFileName =
-            if isWindows then
-                sprintf "dotnet-dev-win-x64.%s.zip" dotnetcliVersion
-            elif isLinux then
-                sprintf "dotnet-dev-ubuntu-x64.%s.tar.gz" dotnetcliVersion
-            else
-                sprintf "dotnet-dev-osx-x64.%s.tar.gz" dotnetcliVersion
-        let downloadPath =
-                sprintf "https://dotnetcli.azureedge.net/dotnet/Sdk/%s/%s" dotnetcliVersion archiveFileName
-        let localPath = Path.Combine(dotnetSDKPath, archiveFileName)
 
-        tracefn "Installing '%s' to '%s'" downloadPath localPath
+let fakePath = "packages" </> "build" </> "FAKE" </> "tools" </> "FAKE.exe"
+let fakeStartInfo script workingDirectory args fsiargs environmentVars =
+    (fun (info: ProcessStartInfo) ->
+        info.FileName <- System.IO.Path.GetFullPath fakePath
+        info.Arguments <- sprintf "%s --fsiargs -d:FAKE %s \"%s\"" args fsiargs script
+        info.WorkingDirectory <- workingDirectory
+        let setVar k v =
+            info.EnvironmentVariables.[k] <- v
+        for (k, v) in environmentVars do
+            setVar k v
+        setVar "MSBuild" msBuildExe
+        setVar "GIT" Git.CommandHelper.gitPath
+        setVar "FSI" fsiPath)
 
-        use webclient = new Net.WebClient()
-        webclient.DownloadFile(downloadPath, localPath)
+/// Run the given buildscript with FAKE.exe
+let executeFAKEWithOutput workingDirectory script fsiargs envArgs =
+    let exitCode =
+        ExecProcessWithLambdas
+            (fakeStartInfo script workingDirectory "" fsiargs envArgs)
+            TimeSpan.MaxValue false ignore ignore
+    System.Threading.Thread.Sleep 1000
+    exitCode
 
-        if not isWindows then
-            let assertExitCodeZero x =
-                if x = 0 then () else
-                failwithf "Command failed with exit code %i" x
+// Documentation
+let buildDocumentationTarget fsiargs target =
+    trace (sprintf "Building documentation (%s), this could take some time, please wait..." target)
+    let exit = executeFAKEWithOutput "docsrc/tools" "generate.fsx" fsiargs ["target", target]
+    if exit <> 0 then
+        failwith "generating reference documentation failed"
+    ()
 
-            Shell.Exec("tar", sprintf """-xvf "%s" -C "%s" """ localPath dotnetSDKPath)
-            |> assertExitCodeZero
-        else
-            System.IO.Compression.ZipFile.ExtractToDirectory(localPath, dotnetSDKPath)
+Target "GenerateReferenceDocs" (fun _ ->
+    buildDocumentationTarget "-d:RELEASE -d:REFERENCE" "Default"
+)
 
-        tracefn "dotnet cli path - %s" dotnetSDKPath
-        System.IO.Directory.EnumerateFiles dotnetSDKPath
-        |> Seq.iter (fun path -> tracefn " - %s" path)
-        System.IO.Directory.EnumerateDirectories dotnetSDKPath
-        |> Seq.iter (fun path -> tracefn " - %s%c" path System.IO.Path.DirectorySeparatorChar)
+let generateHelp' fail debug =
+    let args =
+        if debug then "--define:HELP"
+        else "--define:RELEASE --define:HELP"
+    try
+        buildDocumentationTarget args "Default"
+        traceImportant "Help generated"
+    with
+    | e when not fail ->
+        traceImportant "generating help documentation failed"
 
-        dotnetExePath <- localDotnetExePath
+let generateHelp fail =
+    generateHelp' fail false
 
-    // let oldPath = System.Environment.GetEnvironmentVariable("PATH")
-    // System.Environment.SetEnvironmentVariable("PATH", sprintf "%s%s%s" dotnetSDKPath (System.IO.Path.PathSeparator.ToString()) oldPath)
+Target "GenerateHelp" (fun _ ->
+    DeleteFile "docsrc/content/release-notes.md"
+    CopyFile "docsrc/content/" "RELEASE_NOTES.md"
+    Rename "docsrc/content/release-notes.md" "docsrc/content/RELEASE_NOTES.md"
 
-let clean () =
-    !! "src/**/bin" ++ "src/**/obj"
-    |> CleanDirs
+    DeleteFile "docsrc/content/license.md"
+    CopyFile "docsrc/content/" "LICENSE.txt"
+    Rename "docsrc/content/license.md" "docsrc/content/LICENSE.txt"
 
-let needsPublishing (versionRegex: Regex) (releaseNotes: ReleaseNotes) projFile =
-    printfn "Project: %s" projFile
-    if releaseNotes.NugetVersion.ToUpper().EndsWith("NEXT")
-    then
-        printfn "Version in Release Notes ends with NEXT, don't publish yet."
-        false
-    else
-        File.ReadLines(projFile)
-        |> Seq.tryPick (fun line ->
-            let m = versionRegex.Match(line)
-            if m.Success then Some m else None)
-        |> function
-            | None -> failwith "Couldn't find version in project file"
-            | Some m ->
-                let sameVersion = m.Groups.[1].Value = releaseNotes.NugetVersion
-                if sameVersion then
-                    printfn "Already version %s, no need to publish." releaseNotes.NugetVersion
-                not sameVersion
+    generateHelp true
+)
 
-let pushNuget (releaseNotes: ReleaseNotes) (projFiles: string list) =
-    let versionRegex = Regex("<Version>(.*?)</Version>", RegexOptions.IgnoreCase)
+Target "GenerateHelpDebug" (fun _ ->
+    DeleteFile "docsrc/content/release-notes.md"
+    CopyFile "docsrc/content/" "RELEASE_NOTES.md"
+    Rename "docsrc/content/release-notes.md" "docsrc/content/RELEASE_NOTES.md"
 
-    // Restore dependencies here so they're updated to latest project versions
-    Util.run null dotnetExePath "restore"
+    DeleteFile "docsrc/content/license.md"
+    CopyFile "docsrc/content/" "LICENSE.txt"
+    Rename "docsrc/content/license.md" "docsrc/content/LICENSE.txt"
 
-    projFiles
-    |> Seq.map (fun projFile -> __SOURCE_DIRECTORY__ </> projFile)
-    |> Seq.filter (needsPublishing versionRegex releaseNotes)
-    |> Seq.iter (fun projFile ->
-        let projDir = Path.GetDirectoryName(projFile)
-        let nugetKey =
-            match environVarOrNone "NUGET_KEY" with
-            | Some nugetKey -> nugetKey
-            | None -> failwith "The Nuget API key must be set in a NUGET_KEY environmental variable"
-        Util.run projDir dotnetExePath (sprintf "pack -c Release /p:Version=%s" releaseNotes.NugetVersion)
-        Directory.GetFiles(projDir </> "bin" </> "Release", "*.nupkg")
-        |> Array.find (fun nupkg -> nupkg.Contains(releaseNotes.NugetVersion))
-        |> (fun nupkg ->
-            (Path.GetFullPath nupkg, nugetKey)
-            ||> sprintf "nuget push %s -s nuget.org -k %s"
-            |> Util.run projDir dotnetExePath)
-        // After successful publishing, update the project file
-        (versionRegex, projFile) ||> Util.replaceLines (fun line _ ->
-            versionRegex.Replace(line, "<Version>"+releaseNotes.NugetVersion+"</Version>") |> Some)
+    generateHelp' true true
+)
+
+Target "KeepRunning" (fun _ ->
+    use watcher = !! "docsrc/content/**/*.*" |> WatchChanges (fun changes ->
+         generateHelp' true true
     )
 
-Target "Clean" clean
+    traceImportant "Waiting for help edits. Press any key to stop."
 
-let restore _ = Util.run null dotnetExePath "restore"
+    System.Console.ReadKey() |> ignore
 
-Target "Update" (fun _ ->
-    Util.run "" ".paket/paket.exe" "update"
-    restore ()
+    watcher.Dispose()
 )
 
-Target "Restore" restore
+Target "GenerateDocs" DoNothing
 
-Target "Build" (fun () ->
-    installDotnetSdk ()
-    clean ()
-    restore ()
-    for pkg in packages do
-        let projFile = __SOURCE_DIRECTORY__ </> (pkg + ".fsproj")
-        let projDir = Path.GetDirectoryName(projFile)
-        Util.run projDir dotnetExePath "build"
+let createIndexFsx lang =
+    let content = """(*** hide ***)
+// This block of code is omitted in the generated HTML documentation. Use
+// it to define helpers that you do not want to show in the documentation.
+#I "../../../bin"
+
+(**
+F# Project Scaffold ({0})
+=========================
+*)
+"""
+    let targetDir = "docsrc/content" </> lang
+    let targetFile = targetDir </> "index.fsx"
+    ensureDirectory targetDir
+    System.IO.File.WriteAllText(targetFile, System.String.Format(content, lang))
+
+Target "AddLangDocs" (fun _ ->
+    let args = System.Environment.GetCommandLineArgs()
+    if args.Length < 4 then
+        failwith "Language not specified."
+
+    args.[3..]
+    |> Seq.iter (fun lang ->
+        if lang.Length <> 2 && lang.Length <> 3 then
+            failwithf "Language must be 2 or 3 characters (ex. 'de', 'fr', 'ja', 'gsw', etc.): %s" lang
+
+        let templateFileName = "template.cshtml"
+        let templateDir = "docsrc/tools/templates"
+        let langTemplateDir = templateDir </> lang
+        let langTemplateFileName = langTemplateDir </> templateFileName
+
+        if System.IO.File.Exists(langTemplateFileName) then
+            failwithf "Documents for specified language '%s' have already been added." lang
+
+        ensureDirectory langTemplateDir
+        Copy langTemplateDir [ templateDir </> templateFileName ]
+
+        createIndexFsx lang)
 )
 
-let publishPackages () =
-    installDotnetSdk ()
-    clean ()
-    for pkg in packages do
-        let projFile = __SOURCE_DIRECTORY__ </> (pkg + ".fsproj")
-        let projDir = Path.GetDirectoryName(projFile)
-        let release =
-            Util.findFileUpwards "RELEASE_NOTES.md" projDir
-            |> ReleaseNotesHelper.LoadReleaseNotes
-        pushNuget release [projFile]
+// --------------------------------------------------------------------------------------
+// Release Scripts
 
-Target "PublishPackages" publishPackages
-Target "PublishPackage" publishPackages
-Target "Release" DoNothing
+#load "paket-files/build/fsharp/FAKE/modules/Octokit/Octokit.fsx"
+open Octokit
 
-"PublishPackage" ==> "Release"
+Target "Release" (fun _ ->
+    let user =
+        match getBuildParam "github-user" with
+        | s when not (String.IsNullOrWhiteSpace s) -> s
+        | _ -> getUserInput "Username: "
+    let pw =
+        match getBuildParam "github-pw" with
+        | s when not (String.IsNullOrWhiteSpace s) -> s
+        | _ -> getUserPassword "Password: "
+    let remote =
+        Git.CommandHelper.getGitResult "" "remote -v"
+        |> Seq.filter (fun (s: string) -> s.EndsWith("(push)"))
+        |> Seq.tryFind (fun (s: string) -> s.Contains(gitOwner + "/" + gitName))
+        |> function None -> gitHome + "/" + gitName | Some (s: string) -> s.Split().[0]
 
-// Start build
-RunTargetOrDefault "Build"
+    StageAll ""
+    Git.Commit.Commit "" (sprintf "Bump version to %s" release.NugetVersion)
+    Branches.pushBranch "" remote (Information.getBranchName "")
+
+    Branches.tag "" release.NugetVersion
+    Branches.pushTag "" remote release.NugetVersion
+
+    // release on github
+    createClient user pw
+    |> createDraft gitOwner gitName release.NugetVersion (release.SemVer.PreRelease <> None) release.Notes
+    // TODO: |> uploadFile "PATH_TO_FILE"
+    |> releaseDraft
+    |> Async.RunSynchronously
+)
+
+Target "BuildPackage" DoNothing
+
+// --------------------------------------------------------------------------------------
+// Run all targets by default. Invoke 'build <Target>' to override
+
+Target "All" DoNothing
+
+"AssemblyInfo"
+  ==> "Build"
+  ==> "CopyBinaries"
+  ==> "RunTests"
+  ==> "GenerateReferenceDocs"
+  ==> "GenerateDocs"
+  ==> "NuGet"
+  ==> "BuildPackage"
+  ==> "All"
+
+"GenerateHelp"
+  ==> "GenerateReferenceDocs"
+  ==> "GenerateDocs"
+
+"GenerateHelpDebug"
+  ==> "KeepRunning"
+
+"Clean"
+  ==> "Release"
+
+"BuildPackage"
+  ==> "PublishNuget"
+  ==> "Release"
+
+RunTargetOrDefault "All"
