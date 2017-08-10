@@ -1,3 +1,6 @@
+### 1.1.9
+* fixes Json.Decode.keyValuePairs
+
 #### 1.1.8
 * removes Decode.andUse
 * adds Json.Decode.keyValuePairs

@@ -156,7 +156,7 @@ let keyValuePairs decoder =
                 |> List.map
                     (fun (k, v) ->
                         Decode.run decoder v
-                            |> Result.map (fst >> (=>) k)
+                            |> Result.map (tuple k)
                     )
                 |> Result.combineList
 
