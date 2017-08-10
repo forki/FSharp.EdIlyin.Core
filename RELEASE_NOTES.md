@@ -1,3 +1,6 @@
+### 1.1.4
+* makes Decode.result decode to Result<_,string>
+
 ### 1.1.3
 * adds Json.Decode.bool
 

@@ -166,7 +166,7 @@ let resultFromResult =
         | Ok x -> Ok x
 
 
-let result decoder = run decoder >> Ok |> fromFunction
+let result decoder = decode decoder >> Ok |> fromFunction
 
 
 let errorMessage errorMessage = ErrorMessage errorMessage |> Error
@@ -200,7 +200,7 @@ let orElse decoder2 decoder1 =
         |> andThen
             (function
                 | Error _ -> decoder2
-                | Ok v -> Ok v |> fromDecodeResult
+                | Ok v -> Ok v |> fromResult
             )
 
 
