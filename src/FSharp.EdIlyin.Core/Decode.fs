@@ -69,6 +69,17 @@ let andThen func decoder =
     |> primitive label
 
 
+let andUse func decoder =
+    let label = getLabel decoder
+
+    fun input ->
+        match run decoder input with
+            | Ok value -> run (func value) value
+            | Error error -> Error error
+
+    |> primitive label
+
+
 type Builder () =
     member this.Bind (m, f) = andThen f m
     member this.Return m = succeed m

@@ -1,4 +1,7 @@
-### 1.1.6
+#### 1.1.7
+* adds Decode.andUse
+
+#### 1.1.6
 * adds Json.Decode.Null
 
 #### 1.1.5
