@@ -5,7 +5,7 @@ open FSharp.EdIlyin.Core
 
 
 let value : Decode.Decoder<Json, Json> =
-    Decode.primitive "an JSON Value" Decode.decoded
+    Decode.primitive "an JSON Value" Ok
 
 
 let decodeValue decoder json = Decode.decode decoder json
@@ -23,7 +23,7 @@ let primitive label func =
         fun value ->
             try
                 match func value with
-                    | Some x -> Decode.decoded x
+                    | Some x -> Ok x
                     | None -> Decode.expectingButGot label value
 
             with | e -> Operators.string e |> Decode.errorMessage
@@ -90,13 +90,11 @@ let list decoder =
         (function
             | Array list ->
                 List.map
-                    (Decode.run decoder
-                        >> Decode.fromDecodeResult itemLabel
-                    )
+                    (Decode.run decoder >> Decode.fromDecodeResult)
                     list
                     |> Decode.combineList
 
-            | other -> got other |> Decode.fromDecodeResult label
+            | other -> got other |> Decode.fromDecodeResult
         )
         value
 

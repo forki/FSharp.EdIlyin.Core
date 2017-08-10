@@ -1,293 +1,182 @@
 module FSharp.EdIlyin.Core.Decode
 
 
-type Label = string
+type Expecting = string
+
+
+type Got = string
 
 
 type ErrorMessage = string
 
 
-type DecodeResult<'T> =
-    | Decoded of 'T
-    | ExpectingButGot of Label * string
+type Error =
+    | ExpectingButGot of Expecting * Got
     | ErrorMessage of ErrorMessage
 
 
-type Decoder<'From,'To> = {
-    decoder: 'From -> DecodeResult<'To>
-    label: Label
-}
+type Decoder<'From,'To> =
+    Decoder of Expecting * ('From -> Result<'To,Error>)
 
 
-let run decoder value = decoder.decoder value
+let run (Decoder (_, decoder)) input = decoder input
 
 
-let getLabel decoder = decoder.label
+let getLabel (Decoder (expecting, _)) = expecting
 
 
 let decode decoder source =
-    run decoder source
-        |> function
-            | Decoded value -> Ok value
+    match run decoder source with
+        | Ok output -> Ok output
 
-            | ExpectingButGot (expecting, got) ->
-                sprintf "Expecting %s, but instead got: %A"
-                    expecting
-                    got
-                    |> Error
+        | Error (ExpectingButGot (expecting, got)) ->
+            sprintf "Expecting %s, but instead got: %A"
+                expecting
+                got
+                |> Error
 
-            | ErrorMessage message -> Error message
-
-
-let inline primitive label func = { decoder = func; label = label }
+        | Error (ErrorMessage error) -> Error error
 
 
-let fail error = primitive "anything" <| fun _ -> ErrorMessage error
+let primitive expecting func = Decoder (expecting, func)
 
 
-let succeed value = primitive "anything" <| fun _ -> Decoded value
+let fromFunction func = primitive "" func
 
 
-let setLabel label decoder = { decoder with label = label }
+let fail error = fromFunction <| fun _ -> ErrorMessage error |> Error
 
 
-let (<?>) decoder label = setLabel label decoder
+let succeed value = fromFunction <| fun _ -> Ok value
+
+
+let expecting expecting (Decoder (_, decoder)) =
+    primitive expecting decoder
+
+
+let expectingButGot expecting got =
+    expecting => sprintf "%A" got |> ExpectingButGot |> Error
 
 
 let andThen func decoder =
     let label = getLabel decoder
 
-    primitive label
-        (fun input ->
-            match run decoder input with
-                | Decoded value -> run (func value) input
+    fun input ->
+        match run decoder input with
+            | Ok value -> run (func value) input
+            | Error error -> Error error
 
-                | ExpectingButGot (expecting, got) ->
-                    expecting => got |> ExpectingButGot
-
-                | ErrorMessage message -> ErrorMessage message
-        )
+    |> primitive label
 
 
-let (>>=) decoder func = andThen func decoder
+type Builder () =
+    member this.Bind (m, f) = andThen f m
+    member this.Return m = succeed m
 
 
 let andMap decoder functionDecoder =
-    functionDecoder >>= (fun f -> decoder >>= (f >> succeed))
-
-
-let (<*>) fnDecoder decoder = andMap decoder fnDecoder
+    functionDecoder
+        |> andThen (fun f -> decoder |> andThen (f >> succeed))
 
 
 let map func decoder =
-    succeed func
-        <*> decoder
-        <?> sprintf "{ %s }" (getLabel decoder)
+    succeed func |> andMap decoder
 
 
 let map2 func decoder1 decoder2 =
-    succeed func
-        <*> decoder1
-        <*> decoder2
-        <?> sprintf "{ %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
+    succeed func |> andMap decoder1 |> andMap decoder2
 
 
 let map3 func decoder1 decoder2 decoder3 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <?> sprintf "{ %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
 
 
 let map4 func decoder1 decoder2 decoder3 decoder4 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <*> decoder4
-        <?> sprintf "{ %s, %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
-            (getLabel decoder4)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
+        |> andMap decoder4
 
 
 let map5 func decoder1 decoder2 decoder3 decoder4 decoder5 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <*> decoder4
-        <*> decoder5
-        <?> sprintf "{ %s, %s, %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
-            (getLabel decoder4)
-            (getLabel decoder5)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
+        |> andMap decoder4
+        |> andMap decoder5
 
 
 let map6 func decoder1 decoder2 decoder3 decoder4 decoder5 decoder6 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <*> decoder4
-        <*> decoder5
-        <*> decoder6
-        <?> sprintf "{ %s, %s, %s, %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
-            (getLabel decoder4)
-            (getLabel decoder5)
-            (getLabel decoder6)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
+        |> andMap decoder4
+        |> andMap decoder5
+        |> andMap decoder6
 
 
 let map7 func decoder1 decoder2 decoder3 decoder4 decoder5 decoder6 decoder7 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <*> decoder4
-        <*> decoder5
-        <*> decoder6
-        <*> decoder7
-        <?> sprintf "{ %s, %s, %s, %s, %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
-            (getLabel decoder4)
-            (getLabel decoder5)
-            (getLabel decoder6)
-            (getLabel decoder7)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
+        |> andMap decoder4
+        |> andMap decoder5
+        |> andMap decoder6
+        |> andMap decoder7
 
 
 let map8 func decoder1 decoder2 decoder3 decoder4 decoder5 decoder6 decoder7 decoder8 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <*> decoder4
-        <*> decoder5
-        <*> decoder6
-        <*> decoder7
-        <*> decoder8
-        <?> sprintf "{ %s, %s, %s, %s, %s, %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
-            (getLabel decoder4)
-            (getLabel decoder5)
-            (getLabel decoder6)
-            (getLabel decoder7)
-            (getLabel decoder8)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
+        |> andMap decoder4
+        |> andMap decoder5
+        |> andMap decoder6
+        |> andMap decoder7
+        |> andMap decoder8
 
 
 let map9 func decoder1 decoder2 decoder3 decoder4 decoder5 decoder6 decoder7 decoder8 decoder9 =
     succeed func
-        <*> decoder1
-        <*> decoder2
-        <*> decoder3
-        <*> decoder4
-        <*> decoder5
-        <*> decoder6
-        <*> decoder7
-        <*> decoder8
-        <*> decoder9
-        <?> sprintf "{ %s, %s, %s, %s, %s, %s, %s, %s, %s }"
-            (getLabel decoder1)
-            (getLabel decoder2)
-            (getLabel decoder3)
-            (getLabel decoder4)
-            (getLabel decoder5)
-            (getLabel decoder6)
-            (getLabel decoder7)
-            (getLabel decoder8)
-            (getLabel decoder9)
+        |> andMap decoder1
+        |> andMap decoder2
+        |> andMap decoder3
+        |> andMap decoder4
+        |> andMap decoder5
+        |> andMap decoder6
+        |> andMap decoder7
+        |> andMap decoder8
+        |> andMap decoder9
 
 
 let fromResult result = Result.unpack fail succeed result
 
 
-// /// Match an input token if the predicate is satisfied
-let satisfy nextFn predicate label =
-    let innerFn input =
-        let remainingInput, opt = nextFn input
-
-        match opt with
-            | None ->
-                let err = "No more input"
-                ErrorMessage err
-
-            | Some first ->
-                match predicate first with
-                    | Ok value ->
-                        value => remainingInput |> ExpectingButGot
-
-                    | Error unexpected ->
-                        label
-                            => unexpected
-                            |> ExpectingButGot
-
-    // return the parser
-    {decoder=innerFn;label=label}
-
-
-/// Run the parser on a InputState
-// let runOnInput parser input =
-    // call inner function with input
-    // parser.decoder input
-
-
-// let parseAny parser input =
-//      run parser input
-//         |> Result.map fst
-
-
-let tuple p1 p2 =
-    let label = sprintf "%s and %s" (getLabel p1) (getLabel p2)
-    p1 >>= (fun p1Result ->
-    p2 >>= (fun p2Result ->
-        succeed (p1Result,p2Result) ))
-    <?> label
-
-
-let (.>>.) = tuple
-
-
-let (>>.) p1 p2 = p1 .>>. p2 |> map snd
-
-
 let resultFromResult =
     function
-        | Error x -> ErrorMessage x
-        | Ok x -> Decoded x
+        | Error x -> ErrorMessage x |> Error
+        | Ok x -> Ok x
 
 
-let result decoder =
-    let label = getLabel decoder
-    decode decoder >> Decoded |> primitive label
+let result decoder = run decoder >> Ok |> fromFunction
 
 
-let inline expectingButGot expecting got =
-    expecting => sprintf "%A" got |> ExpectingButGot
+let errorMessage errorMessage = ErrorMessage errorMessage |> Error
 
 
-let inline errorMessage errorMessage = ErrorMessage errorMessage
+let ok value = Ok value
 
 
-let inline decoded value = Decoded value
-
-
-let fromDecodeResult label decodeResult =
-    primitive label <| fun _ -> decodeResult
+let fromDecodeResult decodeResult =
+    fromFunction <| fun _ -> decodeResult
 
 
 let combineList decoderList =
@@ -297,9 +186,23 @@ let combineList decoderList =
 
 let maybe decoder =
     decode decoder
-        >> Result.unpack (fun _ -> decoded None) (Some >> decoded)
-        |> primitive ""
+        >> Result.unpack (fun _ -> ok None) (Some >> ok)
+        |> fromFunction
 
 
 let withDefault fallback decoder =
     maybe decoder |> map (Option.withDefault fallback)
+
+
+let orElse decoder1 decoder2 =
+    decoder1
+        |> result
+        |> andThen
+            (function
+                | Error _ -> decoder2
+                | Ok v -> Ok v |> fromDecodeResult
+            )
+
+
+let oneOf decoderList =
+    List.reduce orElse decoderList

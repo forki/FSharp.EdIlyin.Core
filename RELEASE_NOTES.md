@@ -1,4 +1,7 @@
-### 1.1.0
+### 1.1.1
+* clean up Decode module
+
+#### 1.1.0
 * fixes version
 
 #### 1.0.17
