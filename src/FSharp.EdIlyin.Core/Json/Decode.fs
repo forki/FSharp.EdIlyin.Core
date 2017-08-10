@@ -123,3 +123,10 @@ let optionalField fieldName decoder =
             | Result.Error _ -> Decode.succeed None
 
     in value |> Decode.andThen finishDecoding
+
+
+let bool =
+    function
+        | Bool x -> Some x
+        | _ -> None
+        |> primitive "a Boolean"

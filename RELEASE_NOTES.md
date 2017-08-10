@@ -1,4 +1,7 @@
-### 1.1.2
+### 1.1.3
+* adds Json.Decode.bool
+
+#### 1.1.2
 * fixes order in Decode.orElse
 
 #### 1.1.1
