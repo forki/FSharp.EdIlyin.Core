@@ -1,3 +1,6 @@
+### 1.1.5
+* adds Json.Decode.float
+
 ### 1.1.4
 * makes Decode.result decode to Result<_,string>
 

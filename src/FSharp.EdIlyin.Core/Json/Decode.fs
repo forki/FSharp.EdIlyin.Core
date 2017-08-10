@@ -130,3 +130,10 @@ let bool =
         | Bool x -> Some x
         | _ -> None
         |> primitive "a Boolean"
+
+
+let float =
+    function
+        | Number x -> float x |> Some
+        | _ -> None
+        |> primitive "a Float"
