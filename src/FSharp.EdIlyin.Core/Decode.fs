@@ -194,7 +194,7 @@ let withDefault fallback decoder =
     maybe decoder |> map (Option.withDefault fallback)
 
 
-let orElse decoder1 decoder2 =
+let orElse decoder2 decoder1 =
     decoder1
         |> result
         |> andThen
@@ -205,4 +205,4 @@ let orElse decoder1 decoder2 =
 
 
 let oneOf decoderList =
-    List.reduce orElse decoderList
+    List.reduce (flip orElse) decoderList

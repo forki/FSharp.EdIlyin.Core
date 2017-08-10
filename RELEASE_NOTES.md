@@ -1,4 +1,7 @@
-### 1.1.1
+### 1.1.2
+* fixes order in Decode.orElse
+
+#### 1.1.1
 * clean up Decode module
 
 #### 1.1.0
