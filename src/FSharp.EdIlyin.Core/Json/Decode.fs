@@ -144,3 +144,22 @@ let Null a =
         | Null () -> Some a
         | _ -> None
         |> primitive "a Null"
+
+
+let keyValuePairs decoder =
+    let label = "a Key Value Pairs"
+
+    function
+        | Object map ->
+            map
+                |> Map.toList
+                |> List.map
+                    (fun (k, v) ->
+                        Decode.run decoder v
+                            |> Result.map (fst >> (=>) k)
+                    )
+                |> Result.combineList
+
+        | got -> Decode.expectingButGot label got
+
+    |> Decode.primitive label

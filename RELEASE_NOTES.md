@@ -1,3 +1,7 @@
+#### 1.1.8
+* removes Decode.andUse
+* adds Json.Decode.keyValuePairs
+
 #### 1.1.7
 * adds Decode.andUse
 
