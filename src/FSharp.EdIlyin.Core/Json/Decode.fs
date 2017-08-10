@@ -137,3 +137,10 @@ let float =
         | Number x -> float x |> Some
         | _ -> None
         |> primitive "a Float"
+
+
+let Null a =
+    function
+        | Null () -> Some a
+        | _ -> None
+        |> primitive "a Null"

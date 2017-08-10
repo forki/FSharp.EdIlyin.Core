@@ -1,10 +1,13 @@
-### 1.1.5
+### 1.1.6
+* adds Json.Decode.Null
+
+#### 1.1.5
 * adds Json.Decode.float
 
-### 1.1.4
+#### 1.1.4
 * makes Decode.result decode to Result<_,string>
 
-### 1.1.3
+#### 1.1.3
 * adds Json.Decode.bool
 
 #### 1.1.2
