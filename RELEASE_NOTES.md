@@ -1,3 +1,6 @@
+### 1.1.10
+* add ErrorMessage
+
 ### 1.1.9
 * fixes Json.Decode.keyValuePairs
 
