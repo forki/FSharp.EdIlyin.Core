@@ -11,6 +11,9 @@ type Result<'T,'TError> =
   | Error of ErrorValue:'TError
 
 
+type ErrorMessage = string
+
+
 module Result =
     let andThen func result =
         match result with
