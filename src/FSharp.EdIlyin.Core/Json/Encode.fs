@@ -6,7 +6,8 @@ open Chiron
 let encode = Json.format
 
 
-let string = Json.String
+let string = function null -> Json.Null () | x -> Json.String x
+
 
 
 let int = decimal >> Json.Number

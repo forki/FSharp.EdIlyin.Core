@@ -1,7 +1,10 @@
-### 1.1.10
+### 1.1.11
+* adds check for null for Json.Encode.string
+
+#### 1.1.10
 * add ErrorMessage
 
-### 1.1.9
+#### 1.1.9
 * fixes Json.Decode.keyValuePairs
 
 #### 1.1.8
