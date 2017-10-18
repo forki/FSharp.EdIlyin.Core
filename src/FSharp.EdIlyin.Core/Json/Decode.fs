@@ -14,7 +14,7 @@ let decodeValue decoder json = Decode.decode decoder json
 let decodeString decoder json =
     match Json.tryParse json with
         | Choice1Of2 x -> Ok x
-        | Choice2Of2 e -> Error e
+        | Choice2Of2 e -> Result.Error e
         |> Result.andThen (decodeValue decoder)
 
 
